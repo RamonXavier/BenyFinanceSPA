@@ -1,73 +1,163 @@
-# React + TypeScript + Vite
+# BenyFinance 💰
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Uma aplicação web moderna de controle financeiro pessoal, desenvolvida com React e Tailwind CSS. Substitui planilhas complexas por uma interface intuitiva e responsiva para gerenciar suas finanças.
 
-Currently, two official plugins are available:
+## ✨ Funcionalidades
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 📊 Dashboard
+- **Visão Geral Financeira**: Cards com resumo de saldo em conta, receitas, despesas totais e fatura de cartões
+- **Gráficos Interativos**: 
+  - Receitas vs Despesas (últimos 6 meses)
+  - Gastos por Categoria (mês atual)
+- **Lançamentos Recentes**: Tabela com as últimas transações
 
-## React Compiler
+### 💳 Lançamentos
+- **CRUD Completo**: Criar, visualizar, editar e excluir transações
+- **Formas de Pagamento**: 
+  - Dinheiro/Conta
+  - Cartão de Crédito (com seleção de cartão)
+- **Filtros e Busca**: Pesquisa por descrição e filtro por tipo (Receita/Despesa)
+- **Categorização**: Associe cada lançamento a uma categoria
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🏷️ Categorias
+- **Gerenciamento de Categorias**: Crie, edite e exclua categorias personalizadas
+- **Cores Personalizadas**: Identifique visualmente cada categoria
+- **Grid View**: Visualização organizada de todas as categorias
 
-## Expanding the ESLint configuration
+### ⚙️ Configurações
+- **Gerenciamento de Cartões**: 
+  - Adicione cartões de crédito com nome, banco, limite
+  - Configure dia de fechamento e vencimento
+  - Exclua cartões não utilizados
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 🔐 Autenticação
+- Sistema de login com autenticação mock
+- Rotas protegidas
+- Persistência de sessão
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🚀 Tecnologias
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **React** - Biblioteca para construção de interfaces
+- **Vite** - Build tool e dev server
+- **Tailwind CSS** - Framework CSS utilitário
+- **React Router DOM** - Roteamento
+- **Recharts** - Biblioteca de gráficos
+- **Lucide React** - Ícones
+- **UUID** - Geração de IDs únicos
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 📦 Instalação
+
+### Pré-requisitos
+- Node.js (versão 16 ou superior)
+- npm ou yarn
+
+### Passos
+
+1. Clone o repositório:
+```bash
+git clone <url-do-repositorio>
+cd BenyFinance
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+2. Instale as dependências:
+```bash
+npm install
 ```
+
+3. Inicie o servidor de desenvolvimento:
+```bash
+npm run dev
+```
+
+4. Acesse a aplicação em `http://localhost:5173`
+
+## 🎯 Como Usar
+
+### Login
+Use qualquer e-mail e senha para fazer login (autenticação mock).
+
+### Adicionar Transação
+1. Navegue para **Lançamentos**
+2. Clique em **Novo Lançamento**
+3. Preencha os dados:
+   - Tipo (Receita/Despesa)
+   - Descrição
+   - Valor
+   - Data
+   - Categoria
+   - Forma de Pagamento (apenas para despesas)
+   - Cartão (se pagamento for crédito)
+4. Clique em **Salvar**
+
+### Gerenciar Categorias
+1. Navegue para **Categorias**
+2. Clique em **Nova Categoria**
+3. Defina nome e cor
+4. Use os ícones de editar/excluir para gerenciar
+
+### Adicionar Cartão
+1. Navegue para **Configurações**
+2. Na seção "Meus Cartões", clique em **Adicionar Cartão**
+3. Preencha:
+   - Nome do cartão
+   - Banco
+   - Limite
+   - Dia de fechamento
+   - Dia de vencimento
+4. Clique em **Salvar**
+
+## 📁 Estrutura do Projeto
+
+```
+BenyFinance/
+├── src/
+│   ├── components/
+│   │   └── layout/
+│   │       └── MainLayout.jsx      # Layout principal com sidebar
+│   ├── context/
+│   │   └── AuthContext.jsx         # Contexto de autenticação
+│   ├── pages/
+│   │   ├── Dashboard.jsx           # Página inicial
+│   │   ├── Transactions.jsx        # Gerenciamento de lançamentos
+│   │   ├── Categories.jsx          # Gerenciamento de categorias
+│   │   ├── Settings.jsx            # Configurações e cartões
+│   │   └── Login.jsx               # Tela de login
+│   ├── services/
+│   │   └── mockData.js             # Serviço mock de dados
+│   ├── App.jsx                     # Componente raiz
+│   ├── main.tsx                    # Ponto de entrada
+│   └── index.css                   # Estilos globais
+├── public/
+├── package.json
+├── vite.config.js
+├── tailwind.config.js
+└── README.md
+```
+
+## 🎨 Características de Design
+
+- **Responsivo**: Funciona perfeitamente em desktop e mobile
+- **Moderno**: Interface limpa com Tailwind CSS
+- **Intuitivo**: Navegação clara e fluxos de trabalho simples
+- **Visual**: Gráficos e indicadores visuais para melhor compreensão
+
+## 📝 Licença
+
+Este projeto é de código aberto e está disponível sob a licença MIT.
+
+## 👨‍💻 Desenvolvimento
+
+### Scripts Disponíveis
+
+- `npm run dev` - Inicia o servidor de desenvolvimento
+- `npm run build` - Cria build de produção
+- `npm run preview` - Preview do build de produção
+- `npm run lint` - Executa o linter
+
+### Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
+
+---
+
+Desenvolvido com ❤️ para facilitar o controle financeiro pessoal.
