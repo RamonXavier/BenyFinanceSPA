@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
 import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts';
 import clsx from 'clsx';
 
 const Transactions = () => {
@@ -29,6 +30,10 @@ const Transactions = () => {
     const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
     const [recurringTemplates, setRecurringTemplates] = useState([]);
     const [newTemplate, setNewTemplate] = useState({ description: '', amount: '', category: '' });
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 7));
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loadingDashboard, setLoadingDashboard] = useState(true);
+    const [collapsedMonthlyCharts, setCollapsedMonthlyCharts] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -45,6 +50,22 @@ const Transactions = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        const loadDashboard = async () => {
+            setLoadingDashboard(true);
+            try {
+                const [year, month] = selectedDate.split('-').map(Number);
+                const d = await apiService.getDashboardData(month, year);
+                setDashboardData(d);
+            } catch (err) {
+                console.error('Failed to load dashboard data', err);
+            } finally {
+                setLoadingDashboard(false);
+            }
+        };
+        loadDashboard();
+    }, [selectedDate]);
 
     const loadData = async () => {
         try {
@@ -445,10 +466,18 @@ const Transactions = () => {
                 )}
             </div>
 
-            {/* Summary Cards (collapsible) */}
+            {/* Monthly view: Summary cards (collapsible) */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between p-3">
-                    <div className="text-sm font-medium text-gray-700">Resumo</div>
+                    <div className="flex items-center gap-3">
+                        <div className="text-sm font-medium text-gray-700">Visão Mensal</div>
+                        <input
+                            type="month"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="ml-2 px-3 py-1 border border-gray-200 rounded-lg text-sm outline-none bg-white"
+                        />
+                    </div>
                     <div>
                         <button type="button" onClick={() => setCollapsedSummary(!collapsedSummary)} className="p-2 rounded hover:bg-gray-100">
                             <ChevronDown className={`transform transition ${collapsedSummary ? 'rotate-180' : ''}`} />
@@ -459,35 +488,83 @@ const Transactions = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4">
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Total (líquido)</div>
+                                <div className="text-sm text-gray-500">Saldo em Conta</div>
                                 <DollarSign size={20} className="text-gray-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-gray-900">{formatCurrency(netTotal)}</div>
-                            <div className="mt-2 text-xs text-gray-500">Receitas {formatCurrency(totalIncome)} • Despesas {formatCurrency(totalExpense)}</div>
+                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : '—'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Lançamentos</div>
-                                <BarChart2 size={20} className="text-gray-400" />
+                                <div className="text-sm text-gray-500">Receitas (Mês)</div>
+                                <ArrowUp size={20} className="text-green-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-gray-900">{totalCount}</div>
-                            <div className="mt-2 text-xs text-gray-500">Mostrando {Math.min(totalCount, pageSize)} por página</div>
+                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : '—'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Receitas</div>
-                                <DollarSign size={20} className="text-green-400" />
+                                <div className="text-sm text-gray-500">Despesas Totais</div>
+                                <ArrowDown size={20} className="text-red-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-green-600">{formatCurrency(totalIncome)}</div>
-                            <div className="mt-2 text-xs text-gray-500">{filteredTransactions.filter(t => t.type === 'income').length} lançamentos</div>
+                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : '—'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Despesas</div>
-                                <DollarSign size={20} className="text-red-400" />
+                                <div className="text-sm text-gray-500">Fatura Cartões</div>
+                                <CreditCard size={20} className="text-purple-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-red-600">{formatCurrency(totalExpense)}</div>
-                            <div className="mt-2 text-xs text-gray-500">{filteredTransactions.filter(t => t.type === 'expense').length} lançamentos</div>
+                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : '—'}</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Monthly Charts (collapsible) */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="text-lg font-semibold text-gray-800">Gráficos Mensais</div>
+                    <div>
+                        <button type="button" onClick={() => setCollapsedMonthlyCharts(!collapsedMonthlyCharts)} className="p-2 rounded hover:bg-gray-100">
+                            <ChevronDown className={`transform transition ${collapsedMonthlyCharts ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
+                </div>
+                {!collapsedMonthlyCharts && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={dashboardData?.barChartData || []}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                    <YAxis axisLine={false} tickLine={false} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RePieChart>
+                                    <Pie
+                                        data={dashboardData?.pieChartData || []}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {(dashboardData?.pieChartData || []).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"][index % 6]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </RePieChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 )}

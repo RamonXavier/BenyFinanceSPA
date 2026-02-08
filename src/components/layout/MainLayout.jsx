@@ -16,7 +16,6 @@ const MainLayout = () => {
     };
 
     const navItems = [
-        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/transactions', label: 'Lançamentos', icon: Receipt },
         { path: '/categories', label: 'Categorias', icon: Tags },
         { path: '/settings', label: 'Configurações', icon: Settings },
