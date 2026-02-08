@@ -41,6 +41,7 @@ const Transactions = () => {
         amount: '',
         type: 'expense',
         category: '',
+        categoryId: '',
         date: new Date().toISOString().split('T')[0],
         paymentMethod: 'cash', // cash, credit_card
         cardId: '',
@@ -87,23 +88,32 @@ const Transactions = () => {
     const handleOpenModal = (transaction = null) => {
         if (transaction) {
             setEditingTransaction(transaction);
-            setFormData({
+            // Se não tem categoryId, procura pelo nome da categoria
+            let categoryIdValue = transaction.categoryId ? String(transaction.categoryId) : '';
+            if (!categoryIdValue && transaction.category) {
+                const foundCat = categories.find(c => c.name === transaction.category);
+                categoryIdValue = foundCat ? String(foundCat.id) : '';
+            }
+            setFormData(prevFormData => ({
+                ...prevFormData,
                 description: transaction.description,
                 amount: transaction.amount,
                 type: transaction.type,
                 category: transaction.category,
+                categoryId: categoryIdValue,
                 date: transaction.date.split('T')[0],
                 paymentMethod: transaction.paymentMethod || 'cash',
-                cardId: transaction.cardId || '',
+                cardId: transaction.cardId ? String(transaction.cardId) : '',
                 status: transaction.status || 'pending'
-            });
+            }));
         } else {
             setEditingTransaction(null);
-            setFormData({
+                setFormData({
                 description: '',
                 amount: '',
                 type: 'expense',
                 category: categories[0]?.name || '',
+                categoryId: categories[0]?.id ? String(categories[0].id) : '',
                 date: new Date().toISOString().split('T')[0],
                 paymentMethod: 'cash',
                 cardId: '',
@@ -117,11 +127,41 @@ const Transactions = () => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Extrai categoryId e constrói transactionData sem o categoryId antigo
+            const { categoryId: _, ...formDataWithoutCategoryId } = formData;
+            
+            // Determina o categoryId apropriado (mantendo como string para suportar GUIDs)
+            let categoryIdValue = null;
+
+            // 1. Se o usuário selecionou uma categoria válida no form, usa essa (string)
+            if (formData.categoryId && formData.categoryId !== '') {
+                categoryIdValue = formData.categoryId;
+            }
+            // 2. Se não tem categoryId no form mas tem o nome, procura o ID (preserva como string)
+            else if (formData.category) {
+                const foundCat = categories.find(c => c.name === formData.category);
+                if (foundCat?.id) {
+                    categoryIdValue = String(foundCat.id);
+                } else if (editingTransaction?.categoryId) {
+                    // Se não encontra a categoria pelo nome, mantém a original
+                    categoryIdValue = String(editingTransaction.categoryId);
+                }
+            }
+            // 3. Se não tem nada, tenta manter a original se está editando
+            else if (editingTransaction?.categoryId) {
+                categoryIdValue = String(editingTransaction.categoryId);
+            }
+            // 4. Último recurso: usa a primeira categoria
+            else if (categories.length > 0 && categories[0]?.id) {
+                categoryIdValue = String(categories[0].id);
+            }
+
             const transactionData = {
-                ...formData,
+                ...formDataWithoutCategoryId,
                 amount: Number(formData.amount),
                 date: new Date(formData.date).toISOString(),
-                cardId: formData.paymentMethod === 'credit_card' ? formData.cardId : null
+                categoryId: categoryIdValue,
+                cardId: formData.paymentMethod === 'credit_card' && formData.cardId ? formData.cardId : null
             };
 
             if (editingTransaction) {
@@ -845,13 +885,16 @@ const Transactions = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                                 <select
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                    value={formData.categoryId}
+                                    onChange={(e) => {
+                                        const cat = categories.find(c => String(c.id) === e.target.value);
+                                        setFormData({ ...formData, categoryId: e.target.value, category: cat?.name || '' });
+                                    }}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                 >
                                     <option value="">Selecione uma categoria</option>
                                     {categories.map(cat => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                        <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -862,7 +905,7 @@ const Transactions = () => {
                                     <div className="grid grid-cols-2 gap-4 mb-3">
                                         <button
                                             type="button"
-                                            onClick={() => setFormData({ ...formData, paymentMethod: 'cash', cardId: '' })}
+                                            onClick={() => setFormData({ ...formData, paymentMethod: 'cash' })}
                                             className={clsx(
                                                 'flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors',
                                                 formData.paymentMethod === 'cash'
