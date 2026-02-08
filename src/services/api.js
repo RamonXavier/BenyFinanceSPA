@@ -1,5 +1,5 @@
-//const API_URL = 'https://localhost:7133';
-const API_URL = 'https://benyfinance-api2.tryasp.net';
+const API_URL = 'https://localhost:7133';
+//const API_URL = 'https://benyfinance-api2.tryasp.net';
 
 const getHeaders = () => {
     const token = localStorage.getItem('token');
