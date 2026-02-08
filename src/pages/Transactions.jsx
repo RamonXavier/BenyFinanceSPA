@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts';
 import clsx from 'clsx';
 
 const Transactions = () => {
@@ -10,11 +11,29 @@ const Transactions = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all'); // all, income, expense
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [amountMin, setAmountMin] = useState('');
+    const [amountMax, setAmountMax] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
+    const [collapsedFilters, setCollapsedFilters] = useState(false);
+    const [collapsedSummary, setCollapsedSummary] = useState(false);
+    const [collapsedTopCategories, setCollapsedTopCategories] = useState(false);
+    const [collapsedCategoryMiniCards, setCollapsedCategoryMiniCards] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTransaction, setEditingTransaction] = useState(null);
     const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
     const [recurringTemplates, setRecurringTemplates] = useState([]);
     const [newTemplate, setNewTemplate] = useState({ description: '', amount: '', category: '' });
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 7));
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loadingDashboard, setLoadingDashboard] = useState(true);
+    const [collapsedMonthlyCharts, setCollapsedMonthlyCharts] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -22,6 +41,7 @@ const Transactions = () => {
         amount: '',
         type: 'expense',
         category: '',
+        categoryId: '',
         date: new Date().toISOString().split('T')[0],
         paymentMethod: 'cash', // cash, credit_card
         cardId: '',
@@ -31,6 +51,22 @@ const Transactions = () => {
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        const loadDashboard = async () => {
+            setLoadingDashboard(true);
+            try {
+                const [year, month] = selectedDate.split('-').map(Number);
+                const d = await apiService.getDashboardData(month, year);
+                setDashboardData(d);
+            } catch (err) {
+                console.error('Failed to load dashboard data', err);
+            } finally {
+                setLoadingDashboard(false);
+            }
+        };
+        loadDashboard();
+    }, [selectedDate]);
 
     const loadData = async () => {
         try {
@@ -52,23 +88,32 @@ const Transactions = () => {
     const handleOpenModal = (transaction = null) => {
         if (transaction) {
             setEditingTransaction(transaction);
-            setFormData({
+            // Se não tem categoryId, procura pelo nome da categoria
+            let categoryIdValue = transaction.categoryId ? String(transaction.categoryId) : '';
+            if (!categoryIdValue && transaction.category) {
+                const foundCat = categories.find(c => c.name === transaction.category);
+                categoryIdValue = foundCat ? String(foundCat.id) : '';
+            }
+            setFormData(prevFormData => ({
+                ...prevFormData,
                 description: transaction.description,
                 amount: transaction.amount,
                 type: transaction.type,
                 category: transaction.category,
+                categoryId: categoryIdValue,
                 date: transaction.date.split('T')[0],
                 paymentMethod: transaction.paymentMethod || 'cash',
-                cardId: transaction.cardId || '',
+                cardId: transaction.cardId ? String(transaction.cardId) : '',
                 status: transaction.status || 'pending'
-            });
+            }));
         } else {
             setEditingTransaction(null);
-            setFormData({
+                setFormData({
                 description: '',
                 amount: '',
                 type: 'expense',
                 category: categories[0]?.name || '',
+                categoryId: categories[0]?.id ? String(categories[0].id) : '',
                 date: new Date().toISOString().split('T')[0],
                 paymentMethod: 'cash',
                 cardId: '',
@@ -82,11 +127,41 @@ const Transactions = () => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Extrai categoryId e constrói transactionData sem o categoryId antigo
+            const { categoryId: _, ...formDataWithoutCategoryId } = formData;
+            
+            // Determina o categoryId apropriado (mantendo como string para suportar GUIDs)
+            let categoryIdValue = null;
+
+            // 1. Se o usuário selecionou uma categoria válida no form, usa essa (string)
+            if (formData.categoryId && formData.categoryId !== '') {
+                categoryIdValue = formData.categoryId;
+            }
+            // 2. Se não tem categoryId no form mas tem o nome, procura o ID (preserva como string)
+            else if (formData.category) {
+                const foundCat = categories.find(c => c.name === formData.category);
+                if (foundCat?.id) {
+                    categoryIdValue = String(foundCat.id);
+                } else if (editingTransaction?.categoryId) {
+                    // Se não encontra a categoria pelo nome, mantém a original
+                    categoryIdValue = String(editingTransaction.categoryId);
+                }
+            }
+            // 3. Se não tem nada, tenta manter a original se está editando
+            else if (editingTransaction?.categoryId) {
+                categoryIdValue = String(editingTransaction.categoryId);
+            }
+            // 4. Último recurso: usa a primeira categoria
+            else if (categories.length > 0 && categories[0]?.id) {
+                categoryIdValue = String(categories[0].id);
+            }
+
             const transactionData = {
-                ...formData,
+                ...formDataWithoutCategoryId,
                 amount: Number(formData.amount),
                 date: new Date(formData.date).toISOString(),
-                cardId: formData.paymentMethod === 'credit_card' ? formData.cardId : null
+                categoryId: categoryIdValue,
+                cardId: formData.paymentMethod === 'credit_card' && formData.cardId ? formData.cardId : null
             };
 
             if (editingTransaction) {
@@ -179,11 +254,117 @@ const Transactions = () => {
         }
     };
 
+    const clearFilters = () => {
+        setSearchTerm('');
+        setFilterType('all');
+        setCategoryFilter('');
+        setPaymentMethodFilter('');
+        setStatusFilter('');
+        setDateFrom('');
+        setDateTo('');
+        setAmountMin('');
+        setAmountMax('');
+        setCurrentPage(1);
+    };
+
     const filteredTransactions = transactions.filter(t => {
         const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = filterType === 'all' || t.type === filterType;
-        return matchesSearch && matchesType;
+        const matchesCategory = !categoryFilter || (t.category || '').toString() === categoryFilter;
+        const matchesPayment = !paymentMethodFilter || (t.paymentMethod || '') === paymentMethodFilter;
+        const matchesStatus = !statusFilter || (t.status || '') === statusFilter;
+        const matchesDateFrom = !dateFrom || new Date(t.date) >= new Date(dateFrom);
+        const matchesDateTo = !dateTo || new Date(t.date) <= new Date(dateTo);
+        const matchesAmountMin = amountMin === '' || (Number(t.amount) >= Number(amountMin));
+        const matchesAmountMax = amountMax === '' || (Number(t.amount) <= Number(amountMax));
+
+        return (
+            matchesSearch &&
+            matchesType &&
+            matchesCategory &&
+            matchesPayment &&
+            matchesStatus &&
+            matchesDateFrom &&
+            matchesDateTo &&
+            matchesAmountMin &&
+            matchesAmountMax
+        );
     });
+
+    // Reset page when filters or data change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterType, pageSize, transactions, categoryFilter, paymentMethodFilter, statusFilter, dateFrom, dateTo, amountMin, amountMax]);
+
+    const handleSort = (key) => {
+        setSortConfig(prev => {
+            if (prev.key === key) {
+                return { key, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
+            }
+            return { key, direction: 'asc' };
+        });
+        setCurrentPage(1);
+    };
+
+    const compareValues = (a, b, key) => {
+        if (key === 'date') return new Date(a.date) - new Date(b.date);
+        if (key === 'amount') return (a.amount || 0) - (b.amount || 0);
+        if (key === 'status') {
+            const order = { paid: 1, pending: 2, canceled: 3 };
+            return (order[a.status] || 99) - (order[b.status] || 99);
+        }
+        if (key === 'paymentMethod') return (a.paymentMethod || '').localeCompare(b.paymentMethod || '');
+        return (a[key] || '').toString().localeCompare((b[key] || '').toString(), 'pt-BR', { numeric: true });
+    };
+
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+        const res = compareValues(a, b, sortConfig.key);
+        return sortConfig.direction === 'asc' ? res : -res;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(sortedTransactions.length / pageSize));
+    const paginatedTransactions = sortedTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    // Metrics for filtered dataset (react to filters)
+    const totalCount = filteredTransactions.length;
+    const totalIncome = filteredTransactions
+        .filter(t => t.type === 'income')
+        .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const totalExpense = filteredTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const netTotal = totalIncome - totalExpense;
+
+    const countsByCategory = filteredTransactions.reduce((acc, t) => {
+        const k = t.category || 'Sem categoria';
+        acc[k] = (acc[k] || 0) + 1;
+        return acc;
+    }, {});
+    const topCategories = Object.entries(countsByCategory)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    // Expense sums per category (for desktop mini-cards)
+    const expenseByCategory = filteredTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((acc, t) => {
+            const k = t.category || 'Sem categoria';
+            acc[k] = (acc[k] || 0) + (Number(t.amount) || 0);
+            return acc;
+        }, {});
+
+    // Ensure all known categories appear (even with zero)
+    const categoriesExpenseList = categories
+        .map(c => [c.name, expenseByCategory[c.name] || 0])
+        .sort((a, b) => b[1] - a[1]);
+
+    const statusCounts = filteredTransactions.reduce((acc, t) => {
+        const s = t.status || 'pending';
+        acc[s] = (acc[s] || 0) + 1;
+        return acc;
+    }, {});
+
+    const formatCurrency = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
     if (loading && !transactions.length) {
         return <div className="flex justify-center p-8">Carregando...</div>;
@@ -211,53 +392,340 @@ const Transactions = () => {
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-                    <input
-                        type="text"
-                        placeholder="Buscar lançamentos..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    />
+            {/* Filters (collapsible) */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                        <Filter className="text-gray-400" size={18} />
+                        <div className="text-sm font-medium text-gray-700">Filtros</div>
+                    </div>
+                    <div>
+                        <button type="button" onClick={() => setCollapsedFilters(!collapsedFilters)} className="p-2 rounded hover:bg-gray-100">
+                            <ChevronDown className={`transform transition ${collapsedFilters ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Filter size={20} className="text-gray-400" />
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="border border-gray-200 rounded-lg px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    >
-                        <option value="all">Todos</option>
-                        <option value="income">Receitas</option>
-                        <option value="expense">Despesas</option>
-                    </select>
+                {!collapsedFilters && (
+                    <div className="p-4">
+                        <div className="flex-1 relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                            <input
+                                type="text"
+                                placeholder="Buscar lançamentos..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <select
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="border border-gray-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 bg-white text-sm"
+                            >
+                                <option value="all">Todos</option>
+                                <option value="income">Receitas</option>
+                                <option value="expense">Despesas</option>
+                            </select>
+
+                            <select
+                                value={categoryFilter}
+                                onChange={(e) => setCategoryFilter(e.target.value)}
+                                className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            >
+                                <option value="">Todas as categorias</option>
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                ))}
+                            </select>
+
+                            <select
+                                value={paymentMethodFilter}
+                                onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                                className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            >
+                                <option value="">Qualquer pagamento</option>
+                                <option value="cash">Dinheiro/Conta</option>
+                                <option value="credit_card">Cartão de Crédito</option>
+                            </select>
+
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            >
+                                <option value="">Qualquer status</option>
+                                <option value="pending">Pendente</option>
+                                <option value="paid">Pago</option>
+                                <option value="canceled">Cancelado</option>
+                            </select>
+
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                title="Data inicial"
+                                className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            />
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                title="Data final"
+                                className="border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            />
+
+                            <input
+                                type="number"
+                                placeholder="Min"
+                                min="0"
+                                step="0.01"
+                                value={amountMin}
+                                onChange={(e) => setAmountMin(e.target.value)}
+                                className="w-20 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Max"
+                                min="0"
+                                step="0.01"
+                                value={amountMax}
+                                onChange={(e) => setAmountMax(e.target.value)}
+                                className="w-20 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm"
+                            />
+
+                            <button
+                                onClick={clearFilters}
+                                className="ml-1 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200"
+                            >
+                                Limpar
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Monthly view: Summary cards (collapsible) */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3">
+                        <div className="text-sm font-medium text-gray-700">Visão Mensal</div>
+                        <input
+                            type="month"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="ml-2 px-3 py-1 border border-gray-200 rounded-lg text-sm outline-none bg-white"
+                        />
+                    </div>
+                    <div>
+                        <button type="button" onClick={() => setCollapsedSummary(!collapsedSummary)} className="p-2 rounded hover:bg-gray-100">
+                            <ChevronDown className={`transform transition ${collapsedSummary ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
+                </div>
+                {!collapsedSummary && (
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4">
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-500">Saldo em Conta</div>
+                                <DollarSign size={20} className="text-gray-400" />
+                            </div>
+                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : '—'}</div>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-500">Receitas (Mês)</div>
+                                <ArrowUp size={20} className="text-green-400" />
+                            </div>
+                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : '—'}</div>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-500">Despesas Totais</div>
+                                <ArrowDown size={20} className="text-red-400" />
+                            </div>
+                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : '—'}</div>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm text-gray-500">Fatura Cartões</div>
+                                <CreditCard size={20} className="text-purple-400" />
+                            </div>
+                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : '—'}</div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Monthly Charts (collapsible) */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-4">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="text-lg font-semibold text-gray-800">Gráficos Mensais</div>
+                    <div>
+                        <button type="button" onClick={() => setCollapsedMonthlyCharts(!collapsedMonthlyCharts)} className="p-2 rounded hover:bg-gray-100">
+                            <ChevronDown className={`transform transition ${collapsedMonthlyCharts ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
+                </div>
+                {!collapsedMonthlyCharts && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={dashboardData?.barChartData || []}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                    <YAxis axisLine={false} tickLine={false} />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RePieChart>
+                                    <Pie
+                                        data={dashboardData?.pieChartData || []}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={100}
+                                        fill="#8884d8"
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {(dashboardData?.pieChartData || []).map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"][index % 6]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                    <Legend />
+                                </RePieChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Top categories & status (collapsible) */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-4">
+                <div className="flex items-center justify-between p-3">
+                    <div className="text-sm font-medium text-gray-700">Insights</div>
+                    <div>
+                        <button type="button" onClick={() => setCollapsedTopCategories(!collapsedTopCategories)} className="p-2 rounded hover:bg-gray-100">
+                            <ChevronDown className={`transform transition ${collapsedTopCategories ? 'rotate-180' : ''}`} />
+                        </button>
+                    </div>
+                </div>
+                {!collapsedTopCategories && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 mt-0">
+                        <div className="sm:col-span-2 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium text-gray-700">Top Categorias</div>
+                                <PieChart size={18} className="text-gray-400" />
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                {topCategories.length === 0 && <div className="text-sm text-gray-500">Nenhuma categoria encontrada.</div>}
+                                {topCategories.map(([name, count]) => (
+                                    <div key={name} className="flex items-center justify-between">
+                                        <div className="text-sm text-gray-700">{name}</div>
+                                        <div className="text-sm text-gray-500">{count} lançamentos</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                            <div className="text-sm font-medium text-gray-700">Status</div>
+                            <div className="mt-3 flex flex-col gap-2">
+                                <div className="flex items-center justify-between"><div className="text-sm">Pendente</div><div className="text-sm text-gray-500">{statusCounts.pending || 0}</div></div>
+                                <div className="flex items-center justify-between"><div className="text-sm">Pago</div><div className="text-sm text-gray-500">{statusCounts.paid || 0}</div></div>
+                                <div className="flex items-center justify-between"><div className="text-sm">Cancelado</div><div className="text-sm text-gray-500">{statusCounts.canceled || 0}</div></div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Desktop: mini-cards por categoria (linha full-width, collapsible) */}
+            <div className="hidden md:block w-full mt-4">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="flex items-center justify-between p-3">
+                        <div className="text-sm font-medium text-gray-700">Gastos por Categoria</div>
+                        <div>
+                            <button type="button" onClick={() => setCollapsedCategoryMiniCards(!collapsedCategoryMiniCards)} className="p-2 rounded hover:bg-gray-100">
+                                <ChevronDown className={`transform transition ${collapsedCategoryMiniCards ? 'rotate-180' : ''}`} />
+                            </button>
+                        </div>
+                    </div>
+                    {!collapsedCategoryMiniCards && (
+                        <div className="p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                {categoriesExpenseList.map(([name, amount]) => (
+                                    <div key={name} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="text-sm text-gray-600 truncate">{name}</div>
+                                        <div className="mt-2 text-lg font-semibold text-red-600">{formatCurrency(amount)}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
                     <table className="w-full">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Descrição</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pagamento</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Data. Clique para alternar asc/desc." onClick={() => handleSort('date')} className="flex items-center gap-2">
+                                        Data
+                                        {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Descrição. Clique para alternar asc/desc." onClick={() => handleSort('description')} className="flex items-center gap-2">
+                                        Descrição
+                                        {sortConfig.key === 'description' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Categoria. Clique para alternar asc/desc." onClick={() => handleSort('category')} className="flex items-center gap-2">
+                                        Categoria
+                                        {sortConfig.key === 'category' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Pagamento. Clique para alternar asc/desc." onClick={() => handleSort('paymentMethod')} className="flex items-center gap-2">
+                                        Pagamento
+                                        {sortConfig.key === 'paymentMethod' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Status. Clique para alternar asc/desc." onClick={() => handleSort('status')} className="flex items-center gap-2">
+                                        Status
+                                        {sortConfig.key === 'status' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <button type="button" title="Ordenar por Valor. Clique para alternar asc/desc." onClick={() => handleSort('amount')} className="flex items-center gap-2 justify-end">
+                                        Valor
+                                        {sortConfig.key === 'amount' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
+                                    </button>
+                                </th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                             </tr>
-                        </thead>
+                        </thead> 
                         <tbody className="divide-y divide-gray-200">
-                            {filteredTransactions.map((transaction) => (
+                            {paginatedTransactions.map((transaction) => (
                                 <tr key={transaction.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {new Date(transaction.date).toLocaleDateString('pt-BR')}
-                                    </td>
+                                    </td> 
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {transaction.description}
                                     </td>
@@ -309,6 +777,26 @@ const Transactions = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                        Mostrando {sortedTransactions.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedTransactions.length)} de {sortedTransactions.length} lançamentos
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="border border-gray-200 rounded px-2 py-1 text-sm">
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={20}>20</option>
+                            <option value={50}>50</option>
+                        </select>
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">«</button>
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Anterior</button>
+                        <span className="px-3 text-sm">{currentPage} / {totalPages}</span>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Próxima</button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">»</button>
+                    </div>
                 </div>
             </div>
 
@@ -397,13 +885,16 @@ const Transactions = () => {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                                 <select
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                    value={formData.categoryId}
+                                    onChange={(e) => {
+                                        const cat = categories.find(c => String(c.id) === e.target.value);
+                                        setFormData({ ...formData, categoryId: e.target.value, category: cat?.name || '' });
+                                    }}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                 >
                                     <option value="">Selecione uma categoria</option>
                                     {categories.map(cat => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                        <option key={cat.id} value={String(cat.id)}>{cat.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -414,7 +905,7 @@ const Transactions = () => {
                                     <div className="grid grid-cols-2 gap-4 mb-3">
                                         <button
                                             type="button"
-                                            onClick={() => setFormData({ ...formData, paymentMethod: 'cash', cardId: '' })}
+                                            onClick={() => setFormData({ ...formData, paymentMethod: 'cash' })}
                                             className={clsx(
                                                 'flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors',
                                                 formData.paymentMethod === 'cash'

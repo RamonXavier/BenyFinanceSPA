@@ -33,7 +33,7 @@ function App() {
                             <MainLayout />
                         </ProtectedRoute>
                     }>
-                        <Route index element={<Dashboard />} />
+                        <Route index element={<Transactions />} />
                         <Route path="transactions" element={<Transactions />} />
                         <Route path="categories" element={<Categories />} />
                         <Route path="settings" element={<Settings />} />
