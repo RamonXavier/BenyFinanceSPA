@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts';
+import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown, Download } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, LabelList, AreaChart, Area, LineChart, Line } from 'recharts';
 import clsx from 'clsx';
+import * as XLSX from 'xlsx';
 
 const Transactions = () => {
     const [transactions, setTransactions] = useState([]);
@@ -243,6 +244,34 @@ const Transactions = () => {
         }
     };
 
+    const handleExportExcel = () => {
+        if (sortedTransactions.length === 0) {
+            alert('Não há dados para exportar com os filtros atuais.');
+            return;
+        }
+
+        // Prepare data for XLSX
+        const data = sortedTransactions.map(t => ({
+            'Data': new Date(t.date).toLocaleDateString('pt-BR'),
+            'Descrição': t.description,
+            'Categoria': t.category || 'Sem categoria',
+            'Tipo': t.type === 'income' ? 'Receita' : 'Despesa',
+            'Pagamento': t.paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'Dinheiro/Conta',
+            'Status': t.status === 'paid' ? 'Pago' : (t.status === 'canceled' ? 'Cancelado' : 'Pendente'),
+            'Valor': t.amount
+        }));
+
+        // Create worksheet
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        
+        // Create workbook
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Lançamentos');
+
+        // Download file
+        XLSX.writeFile(workbook, `lancamentos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    };
+
     const getStatusBadge = (status) => {
         switch (status) {
             case 'paid':
@@ -375,6 +404,14 @@ const Transactions = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h1 className="text-2xl font-bold text-gray-900">Lançamentos</h1>
                 <div className="flex gap-2">
+                    <button
+                        onClick={handleExportExcel}
+                        className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                        title="Exportar para Excel"
+                    >
+                        <Download size={20} />
+                        <span className="hidden sm:inline">Exportar</span>
+                    </button>
                     <button
                         onClick={handleOpenRecurringModal}
                         className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -569,43 +606,113 @@ const Transactions = () => {
                     </div>
                 </div>
                 {!collapsedMonthlyCharts && (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dashboardData?.barChartData || []}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                                    <YAxis axisLine={false} tickLine={false} />
-                                    <Tooltip />
-                                    <Legend />
-                                    <Bar dataKey="Receitas" fill="#10b981" radius={[4, 4, 0, 0]} />
-                                    <Bar dataKey="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                    <div className="space-y-8">
+                        {/* Normalização dos dados para os gráficos de barras e área */}
+                        {(() => {
+                            const normalizedBarData = dashboardData?.barChartData?.map(d => ({
+                                name: d.name,
+                                receitas: Number(d.Receitas || d.receitas || 0),
+                                despesas: Number(d.Despesas || d.despesas || 0),
+                                saldo: Number(d.Receitas || d.receitas || 0) - Number(d.Despesas || d.despesas || 0)
+                            })) || [];
 
-                        <div className="h-80">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RePieChart>
-                                    <Pie
-                                        data={dashboardData?.pieChartData || []}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={100}
-                                        fill="#8884d8"
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {(dashboardData?.pieChartData || []).map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"][index % 6]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip />
-                                    <Legend />
-                                </RePieChart>
-                            </ResponsiveContainer>
-                        </div>
+                            return (
+                                <>
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        <div className="h-[450px]">
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Comparativo de Despesas Mensais (6 Meses)</h3>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={normalizedBarData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                                    <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R$ ${value}`} />
+                                                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                                                    <Legend verticalAlign="top" height={36}/>
+                                                    <Bar dataKey="despesas" fill="#ef4444" radius={[4, 4, 0, 0]} name="Total Gasto">
+                                                        <LabelList dataKey="despesas" position="top" formatter={(v) => v > 0 ? formatCurrency(v) : ''} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+
+                                        <div className="h-[450px]">
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Gastos por Categoria (Mês Atual)</h3>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RePieChart>
+                                                    <Pie
+                                                        data={dashboardData?.pieChartData || []}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={80}
+                                                        outerRadius={140}
+                                                        fill="#8884d8"
+                                                        paddingAngle={5}
+                                                        dataKey="value"
+                                                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                                    >
+                                                        {(dashboardData?.pieChartData || []).map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316"][index % 8]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                                                    <Legend />
+                                                </RePieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+                                        <div className="h-[450px]">
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Evolução do Saldo (6 Meses)</h3>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={normalizedBarData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                                    <defs>
+                                                        <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                                                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                                                    <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R$ ${value}`} />
+                                                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                                                    <Area type="monotone" dataKey="saldo" name="Saldo Líquido" stroke="#3b82f6" fillOpacity={1} fill="url(#colorSaldo)" strokeWidth={3}>
+                                                        <LabelList dataKey="saldo" position="top" formatter={(v) => formatCurrency(v)} style={{ fontSize: '12px', fontWeight: 'bold' }} />
+                                                    </Area>
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+
+                                        <div className="h-[450px]">
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Distribuição de Pagamentos</h3>
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RePieChart>
+                                                    <Pie
+                                                        data={[
+                                                            { name: 'Dinheiro/Conta', value: Number(dashboardData?.expense || 0) - Number(dashboardData?.cardExpenses || 0) },
+                                                            { name: 'Cartão de Crédito', value: Number(dashboardData?.cardExpenses || 0) }
+                                                        ]}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={80}
+                                                        outerRadius={140}
+                                                        fill="#8884d8"
+                                                        paddingAngle={5}
+                                                        dataKey="value"
+                                                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                                    >
+                                                        <Cell fill="#10b981" />
+                                                        <Cell fill="#8b5cf6" />
+                                                    </Pie>
+                                                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                                                    <Legend />
+                                                </RePieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 )}
             </div>
