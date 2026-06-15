@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
 import { Wallet } from 'lucide-react';
@@ -40,10 +40,6 @@ const Login = () => {
                 setError(err.message || 'Erro ao criar conta.');
             }
         }
-    };
-
-    const handleRecoverPassword = () => {
-        window.open('https://wa.me/5532991375797', '_blank');
     };
 
     return (
@@ -122,13 +118,12 @@ const Login = () => {
 
                     {isLogin && (
                         <div className="flex justify-end">
-                            <button
-                                type="button"
-                                onClick={handleRecoverPassword}
+                            <Link
+                                to="/forgot-password"
                                 className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                             >
                                 Esqueci minha senha
-                            </button>
+                            </Link>
                         </div>
                     )}
 

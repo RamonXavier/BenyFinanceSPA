@@ -39,6 +39,24 @@ export const apiService = {
         return handleResponse(response);
     },
 
+    forgotPassword: async (email) => {
+        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ email })
+        });
+        return handleResponse(response);
+    },
+
+    resetPassword: async (email, token, newPassword) => {
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ email, token, newPassword })
+        });
+        return handleResponse(response);
+    },
+
     // Dashboard
     getDashboardData: async (month, year) => {
         const params = new URLSearchParams();
