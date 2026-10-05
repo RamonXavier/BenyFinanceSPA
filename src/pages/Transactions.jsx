@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { apiService } from '../services/api';
-import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown, Download } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, X, CreditCard, Wallet, Repeat, CheckCircle, AlertCircle, Clock, ArrowUp, ArrowDown, ChevronsUpDown, DollarSign, BarChart2, PieChart, ChevronDown, Download, Upload, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell, LabelList, AreaChart, Area, LineChart, Line } from 'recharts';
 import clsx from 'clsx';
 import * as XLSX from 'xlsx';
@@ -35,6 +35,12 @@ const Transactions = () => {
     const [dashboardData, setDashboardData] = useState(null);
     const [loadingDashboard, setLoadingDashboard] = useState(true);
     const [collapsedMonthlyCharts, setCollapsedMonthlyCharts] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [importSource, setImportSource] = useState('nubank'); // nubank, mercadopago
+    const [importFile, setImportFile] = useState(null);
+    const [importPreview, setImportPreview] = useState(null);
+    const [importLoading, setImportLoading] = useState(false);
+    const [importError, setImportError] = useState('');
 
     // Form State
     const [formData, setFormData] = useState({
@@ -89,7 +95,7 @@ const Transactions = () => {
     const handleOpenModal = (transaction = null) => {
         if (transaction) {
             setEditingTransaction(transaction);
-            // Se não tem categoryId, procura pelo nome da categoria
+            // Se nÃ£o tem categoryId, procura pelo nome da categoria
             let categoryIdValue = transaction.categoryId ? String(transaction.categoryId) : '';
             if (!categoryIdValue && transaction.category) {
                 const foundCat = categories.find(c => c.name === transaction.category);
@@ -128,31 +134,31 @@ const Transactions = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Extrai categoryId e constrói transactionData sem o categoryId antigo
+            // Extrai categoryId e constrÃ³i transactionData sem o categoryId antigo
             const { categoryId: _, ...formDataWithoutCategoryId } = formData;
             
             // Determina o categoryId apropriado (mantendo como string para suportar GUIDs)
             let categoryIdValue = null;
 
-            // 1. Se o usuário selecionou uma categoria válida no form, usa essa (string)
+            // 1. Se o usuÃ¡rio selecionou uma categoria vÃ¡lida no form, usa essa (string)
             if (formData.categoryId && formData.categoryId !== '') {
                 categoryIdValue = formData.categoryId;
             }
-            // 2. Se não tem categoryId no form mas tem o nome, procura o ID (preserva como string)
+            // 2. Se nÃ£o tem categoryId no form mas tem o nome, procura o ID (preserva como string)
             else if (formData.category) {
                 const foundCat = categories.find(c => c.name === formData.category);
                 if (foundCat?.id) {
                     categoryIdValue = String(foundCat.id);
                 } else if (editingTransaction?.categoryId) {
-                    // Se não encontra a categoria pelo nome, mantém a original
+                    // Se nÃ£o encontra a categoria pelo nome, mantÃ©m a original
                     categoryIdValue = String(editingTransaction.categoryId);
                 }
             }
-            // 3. Se não tem nada, tenta manter a original se está editando
+            // 3. Se nÃ£o tem nada, tenta manter a original se estÃ¡ editando
             else if (editingTransaction?.categoryId) {
                 categoryIdValue = String(editingTransaction.categoryId);
             }
-            // 4. Último recurso: usa a primeira categoria
+            // 4. Ãšltimo recurso: usa a primeira categoria
             else if (categories.length > 0 && categories[0]?.id) {
                 categoryIdValue = String(categories[0].id);
             }
@@ -180,7 +186,7 @@ const Transactions = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Tem certeza que deseja excluir este lançamento?')) {
+        if (window.confirm('Tem certeza que deseja excluir este lanÃ§amento?')) {
             setLoading(true);
             try {
                 await apiService.deleteTransaction(id);
@@ -246,17 +252,17 @@ const Transactions = () => {
 
     const handleExportExcel = () => {
         if (sortedTransactions.length === 0) {
-            alert('Não há dados para exportar com os filtros atuais.');
+            alert('NÃ£o hÃ¡ dados para exportar com os filtros atuais.');
             return;
         }
 
         // Prepare data for XLSX
         const data = sortedTransactions.map(t => ({
             'Data': new Date(t.date).toLocaleDateString('pt-BR'),
-            'Descrição': t.description,
+            'DescriÃ§Ã£o': t.description,
             'Categoria': t.category || 'Sem categoria',
             'Tipo': t.type === 'income' ? 'Receita' : 'Despesa',
-            'Pagamento': t.paymentMethod === 'credit_card' ? 'Cartão de Crédito' : 'Dinheiro/Conta',
+            'Pagamento': t.paymentMethod === 'credit_card' ? 'CartÃ£o de CrÃ©dito' : 'Dinheiro/Conta',
             'Status': t.status === 'paid' ? 'Pago' : (t.status === 'canceled' ? 'Cancelado' : 'Pendente'),
             'Valor': t.amount
         }));
@@ -266,11 +272,58 @@ const Transactions = () => {
         
         // Create workbook
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Lançamentos');
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'LanÃ§amentos');
 
         // Download file
         XLSX.writeFile(workbook, `lancamentos_${new Date().toISOString().slice(0, 10)}.xlsx`);
     };
+    // Import handlers
+    const handleImportFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setImportFile(file);
+            setImportPreview(null);
+            setImportError('');
+        }
+    };
+    const handleImportPreview = async () => {
+        if (!importFile) { setImportError('Selecione um arquivo CSV'); return; }
+        setImportLoading(true); setImportError('');
+        try { const preview = await apiService.previewImport(importFile, importSource); setImportPreview(preview); }
+        catch (err) { setImportError(err?.message || 'Erro ao analisar arquivo'); }
+        finally { setImportLoading(false); }
+    };
+    const handleUpdateImportItem = (index, field, value) => {
+        if (!importPreview) return;
+        const items = [...importPreview.items];
+        items[index] = { ...items[index], [field]: value };
+        setImportPreview({ ...importPreview, items });
+    };
+    const handleToggleCreateCategory = (index) => {
+        if (!importPreview) return;
+        const items = [...importPreview.items];
+        items[index] = { ...items[index], createCategoryIfMissing: !items[index].createCategoryIfMissing, newCategoryName: items[index].newCategoryName || items[index].suggestedCategoryName };
+        setImportPreview({ ...importPreview, items });
+    };
+    const handleAddCategoryInline = async (index, name, color = '#6366f1') => {
+        if (!importPreview || !name) return;
+        try { const cat = await apiService.addCategory({ name, color }); setCategories(prev => [...prev, cat]); const items = [...importPreview.items]; items[index] = { ...items[index], suggestedCategoryId: cat.id, suggestedCategoryName: cat.name, createCategoryIfMissing: false }; setImportPreview({ ...importPreview, items }); }
+        catch (err) { console.error(err); }
+    };
+    const handleConfirmImport = async () => {
+        if (!importPreview) return;
+        const validItems = importPreview.items.filter(i => i.isValid);
+        const itemsToConfirm = validItems.map(item => {
+            let categoryId = item.suggestedCategoryId; let createCategory = false; let newCategoryName = null;
+            if (item.createCategoryIfMissing) { createCategory = true; newCategoryName = item.newCategoryName || item.suggestedCategoryName; categoryId = null; }
+            return { date: item.date, description: item.description, amount: Number(item.amount), type: item.type, categoryId, paymentMethod: item.paymentMethod, cardId: item.cardId, status: item.status, createCategory, newCategoryName, newCategoryColor: '#6366f1' };
+        });
+        setImportLoading(true);
+        try { await apiService.confirmImport({ source: importSource, items: itemsToConfirm }); setIsImportModalOpen(false); setImportPreview(null); setImportFile(null); await loadData(); }
+        catch (err) { setImportError(err?.message || 'Erro ao importar'); }
+        finally { setImportLoading(false); }
+    };
+    const handleCloseImport = () => { setIsImportModalOpen(false); setImportPreview(null); setImportFile(null); setImportError(''); };
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -402,7 +455,7 @@ const Transactions = () => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">Lançamentos</h1>
+                <h1 className="text-2xl font-bold text-gray-900">LanÃ§amentos</h1>
                 <div className="flex gap-2">
                     <button
                         onClick={handleExportExcel}
@@ -411,6 +464,10 @@ const Transactions = () => {
                     >
                         <Download size={20} />
                         <span className="hidden sm:inline">Exportar</span>
+                    </button>
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors" title="Importar CSV">
+                        <Upload size={20} />
+                        <span className="hidden sm:inline">Importar</span>
                     </button>
                     <button
                         onClick={handleOpenRecurringModal}
@@ -424,7 +481,7 @@ const Transactions = () => {
                         className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         <Plus size={20} />
-                        <span className="hidden sm:inline">Novo Lançamento</span>
+                        <span className="hidden sm:inline">Novo LanÃ§amento</span>
                     </button>
                 </div>
             </div>
@@ -448,7 +505,7 @@ const Transactions = () => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Buscar lançamentos..."
+                                placeholder="Buscar lanÃ§amentos..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -484,7 +541,7 @@ const Transactions = () => {
                             >
                                 <option value="">Qualquer pagamento</option>
                                 <option value="cash">Dinheiro/Conta</option>
-                                <option value="credit_card">Cartão de Crédito</option>
+                                <option value="credit_card">CartÃ£o de CrÃ©dito</option>
                             </select>
 
                             <select
@@ -547,7 +604,7 @@ const Transactions = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3">
-                        <div className="text-sm font-medium text-gray-700">Visão Mensal</div>
+                        <div className="text-sm font-medium text-gray-700">VisÃ£o Mensal</div>
                         <input
                             type="month"
                             value={selectedDate}
@@ -568,28 +625,28 @@ const Transactions = () => {
                                 <div className="text-sm text-gray-500">Saldo em Conta</div>
                                 <DollarSign size={20} className="text-gray-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : '—'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : 'â€”'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Receitas (Mês)</div>
+                                <div className="text-sm text-gray-500">Receitas (MÃªs)</div>
                                 <ArrowUp size={20} className="text-green-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : '—'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : 'â€”'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
                                 <div className="text-sm text-gray-500">Despesas Totais</div>
                                 <ArrowDown size={20} className="text-red-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : '—'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : 'â€”'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Fatura Cartões</div>
+                                <div className="text-sm text-gray-500">Fatura CartÃµes</div>
                                 <CreditCard size={20} className="text-purple-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : '—'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : 'â€”'}</div>
                         </div>
                     </div>
                 )}
@@ -598,7 +655,7 @@ const Transactions = () => {
             {/* Monthly Charts (collapsible) */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-4">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="text-lg font-semibold text-gray-800">Gráficos Mensais</div>
+                    <div className="text-lg font-semibold text-gray-800">GrÃ¡ficos Mensais</div>
                     <div>
                         <button type="button" onClick={() => setCollapsedMonthlyCharts(!collapsedMonthlyCharts)} className="p-2 rounded hover:bg-gray-100">
                             <ChevronDown className={`transform transition ${collapsedMonthlyCharts ? 'rotate-180' : ''}`} />
@@ -607,7 +664,7 @@ const Transactions = () => {
                 </div>
                 {!collapsedMonthlyCharts && (
                     <div className="space-y-8">
-                        {/* Normalização dos dados para os gráficos de barras e área */}
+                        {/* NormalizaÃ§Ã£o dos dados para os grÃ¡ficos de barras e Ã¡rea */}
                         {(() => {
                             const normalizedBarData = dashboardData?.barChartData?.map(d => ({
                                 name: d.name,
@@ -636,7 +693,7 @@ const Transactions = () => {
                                         </div>
 
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Gastos por Categoria (Mês Atual)</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Gastos por Categoria (MÃªs Atual)</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <RePieChart>
                                                     <Pie
@@ -663,7 +720,7 @@ const Transactions = () => {
 
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Evolução do Saldo (6 Meses)</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">EvoluÃ§Ã£o do Saldo (6 Meses)</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <AreaChart data={normalizedBarData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                                     <defs>
@@ -676,7 +733,7 @@ const Transactions = () => {
                                                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                                     <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R$ ${value}`} />
                                                     <Tooltip formatter={(value) => formatCurrency(value)} />
-                                                    <Area type="monotone" dataKey="saldo" name="Saldo Líquido" stroke="#3b82f6" fillOpacity={1} fill="url(#colorSaldo)" strokeWidth={3}>
+                                                    <Area type="monotone" dataKey="saldo" name="Saldo LÃ­quido" stroke="#3b82f6" fillOpacity={1} fill="url(#colorSaldo)" strokeWidth={3}>
                                                         <LabelList dataKey="saldo" position="top" formatter={(v) => formatCurrency(v)} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                     </Area>
                                                 </AreaChart>
@@ -684,13 +741,13 @@ const Transactions = () => {
                                         </div>
 
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Distribuição de Pagamentos</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">DistribuiÃ§Ã£o de Pagamentos</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <RePieChart>
                                                     <Pie
                                                         data={[
                                                             { name: 'Dinheiro/Conta', value: Number(dashboardData?.expense || 0) - Number(dashboardData?.cardExpenses || 0) },
-                                                            { name: 'Cartão de Crédito', value: Number(dashboardData?.cardExpenses || 0) }
+                                                            { name: 'CartÃ£o de CrÃ©dito', value: Number(dashboardData?.cardExpenses || 0) }
                                                         ]}
                                                         cx="50%"
                                                         cy="50%"
@@ -739,7 +796,7 @@ const Transactions = () => {
                                 {topCategories.map(([name, count]) => (
                                     <div key={name} className="flex items-center justify-between">
                                         <div className="text-sm text-gray-700">{name}</div>
-                                        <div className="text-sm text-gray-500">{count} lançamentos</div>
+                                        <div className="text-sm text-gray-500">{count} lanÃ§amentos</div>
                                     </div>
                                 ))}
                             </div>
@@ -795,8 +852,8 @@ const Transactions = () => {
                                     </button>
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <button type="button" title="Ordenar por Descrição. Clique para alternar asc/desc." onClick={() => handleSort('description')} className="flex items-center gap-2">
-                                        Descrição
+                                    <button type="button" title="Ordenar por DescriÃ§Ã£o. Clique para alternar asc/desc." onClick={() => handleSort('description')} className="flex items-center gap-2">
+                                        DescriÃ§Ã£o
                                         {sortConfig.key === 'description' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
                                     </button>
                                 </th>
@@ -824,7 +881,7 @@ const Transactions = () => {
                                         {sortConfig.key === 'amount' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
                                     </button>
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AÃ§Ãµes</th>
                             </tr>
                         </thead> 
                         <tbody className="divide-y divide-gray-200">
@@ -845,7 +902,7 @@ const Transactions = () => {
                                         {transaction.paymentMethod === 'credit_card' ? (
                                             <div className="flex items-center gap-1 text-purple-600">
                                                 <CreditCard size={16} />
-                                                <span className="text-xs font-medium">Crédito</span>
+                                                <span className="text-xs font-medium">CrÃ©dito</span>
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-1 text-green-600">
@@ -889,7 +946,7 @@ const Transactions = () => {
                 {/* Pagination */}
                 <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
                     <div className="text-sm text-gray-600">
-                        Mostrando {sortedTransactions.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedTransactions.length)} de {sortedTransactions.length} lançamentos
+                        Mostrando {sortedTransactions.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedTransactions.length)} de {sortedTransactions.length} lanÃ§amentos
                     </div>
                     <div className="flex items-center gap-2">
                         <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="border border-gray-200 rounded px-2 py-1 text-sm">
@@ -898,11 +955,11 @@ const Transactions = () => {
                             <option value={20}>20</option>
                             <option value={50}>50</option>
                         </select>
-                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">«</button>
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Â«</button>
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Anterior</button>
                         <span className="px-3 text-sm">{currentPage} / {totalPages}</span>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Próxima</button>
-                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">»</button>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">PrÃ³xima</button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Â»</button>
                     </div>
                 </div>
             </div>
@@ -913,7 +970,7 @@ const Transactions = () => {
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="flex items-center justify-between p-6 border-b border-gray-100">
                             <h2 className="text-xl font-bold text-gray-900">
-                                {editingTransaction ? 'Editar Lançamento' : 'Novo Lançamento'}
+                                {editingTransaction ? 'Editar LanÃ§amento' : 'Novo LanÃ§amento'}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                                 <X size={24} />
@@ -952,14 +1009,14 @@ const Transactions = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">DescriÃ§Ã£o</label>
                                 <input
                                     type="text"
                                     required
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Ex: Compras do mês"
+                                    placeholder="Ex: Compras do mÃªs"
                                 />
                             </div>
 
@@ -1034,7 +1091,7 @@ const Transactions = () => {
                                             )}
                                         >
                                             <CreditCard size={16} />
-                                            Cartão de Crédito
+                                            CartÃ£o de CrÃ©dito
                                         </button>
                                     </div>
 
@@ -1045,7 +1102,7 @@ const Transactions = () => {
                                             onChange={(e) => setFormData({ ...formData, cardId: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                         >
-                                            <option value="">Selecione o cartão</option>
+                                            <option value="">Selecione o cartÃ£o</option>
                                             {cards.map(card => (
                                                 <option key={card.id} value={card.id}>{card.name}</option>
                                             ))}
@@ -1097,7 +1154,7 @@ const Transactions = () => {
                                 <h3 className="text-sm font-medium text-gray-700 mb-4">Adicionar Novo Modelo</h3>
                                 <form onSubmit={handleAddTemplate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                     <div className="md:col-span-2">
-                                        <label className="block text-xs text-gray-500 mb-1">Descrição</label>
+                                        <label className="block text-xs text-gray-500 mb-1">DescriÃ§Ã£o</label>
                                         <input
                                             type="text"
                                             required
@@ -1160,10 +1217,10 @@ const Transactions = () => {
                                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
                             >
                                 <CheckCircle size={20} />
-                                Gerar Contas para o Mês Atual
+                                Gerar Contas para o MÃªs Atual
                             </button>
                             <p className="text-xs text-gray-500 text-center mt-2">
-                                Isso criará lançamentos pendentes para o dia 10 deste mês com valor R$ 0,00.
+                                Isso criarÃ¡ lanÃ§amentos pendentes para o dia 10 deste mÃªs com valor R$ 0,00.
                             </p>
                         </div>
                     </div>
@@ -1174,3 +1231,94 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
+
+
+            {/* Import Modal */}
+            {isImportModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-auto m-4">
+                        <div className="flex justify-between items-center p-6 border-b">
+                            <h2 className="text-xl font-bold text-gray-900">Importar Extrato CSV</h2>
+                            <button onClick={handleCloseImport} className="text-gray-500 hover:text-gray-700"><X size={24} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="flex flex-wrap gap-4 items-end">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
+                                    <select value={importSource} onChange={(e) => setImportSource(e.target.value)} className="border rounded-lg px-3 py-2">
+                                        <option value="nubank">Nubank</option>
+                                        <option value="mercadopago">Mercado Pago</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">Arquivo CSV</label>
+                                    <input type="file" accept=".csv" onChange={handleImportFileChange} className="border rounded-lg px-3 py-2" />
+                                </div>
+                                <button onClick={handleImportPreview} disabled={importLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">Analisar</button>
+                            </div>
+                            {importError && <div className="bg-red-100 text-red-700 p-3 rounded">{importError}</div>}
+                            {importPreview && (
+                                <div className="space-y-3">
+                                    <div className="text-sm text-gray-600">Validos: {importPreview.validRows} / {importPreview.totalRows}</div>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-200">
+                                            <thead className="bg-gray-50">
+                                                <tr>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Data</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Descrição</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Valor</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Tipo</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Categoria</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Criar cat.</th>
+                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white divide-y divide-gray-200">
+                                                {importPreview.items.map((item, idx) => (
+                                                    <tr key={idx} className={item.isValid ? '' : 'bg-red-50'}>
+                                                        <td className="px-2 py-2 text-xs">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                                                        <td className="px-2 py-2 text-xs max-w-xs truncate" title={item.description}>{item.description}</td>
+                                                        <td className="px-2 py-2 text-xs">R$ {Number(item.amount).toFixed(2)}</td>
+                                                        <td className="px-2 py-2 text-xs">
+                                                            <select value={item.type} onChange={(e) => handleUpdateImportItem(idx, 'type', e.target.value)} className="border rounded px-1 py-1 text-xs">
+                                                                <option value="expense">Despesa</option>
+                                                                <option value="income">Receita</option>
+                                                            </select>
+                                                        </td>
+                                                        <td className="px-2 py-2 text-xs">
+                                                            {!item.createCategoryIfMissing ? (
+                                                                <select value={item.suggestedCategoryId || ''} onChange={(e) => {
+                                                                    const cat = categories.find(c => c.id === e.target.value);
+                                                                    handleUpdateImportItem(idx, 'suggestedCategoryId', e.target.value);
+                                                                    handleUpdateImportItem(idx, 'suggestedCategoryName', cat?.name || '');
+                                                                }} className="border rounded px-1 py-1 text-xs">
+                                                                    <option value="">Selecionar</option>
+                                                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                                </select>
+                                                            ) : (
+                                                                <input type="text" value={item.newCategoryName || ''} onChange={(e) => handleUpdateImportItem(idx, 'newCategoryName', e.target.value)} className="border rounded px-1 py-1 text-xs w-24" />
+                                                            )}
+                                                            <button type="button" onClick={() => handleToggleCreateCategory(idx)} className="ml-1 text-xs text-blue-600">Nova</button>
+                                                        </td>
+                                                        <td className="px-2 py-2 text-xs">
+                                                            <select value={item.status} onChange={(e) => handleUpdateImportItem(idx, 'status', e.target.value)} className="border rounded px-1 py-1 text-xs">
+                                                                <option value="paid">Pago</option>
+                                                                <option value="pending">Pendente</option>
+                                                                <option value="canceled">Cancelado</option>
+                                                            </select>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <button onClick={handleConfirmImport} disabled={importLoading} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">Confirmar Importação</button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
