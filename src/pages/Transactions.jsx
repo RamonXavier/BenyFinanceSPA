@@ -95,7 +95,7 @@ const Transactions = () => {
     const handleOpenModal = (transaction = null) => {
         if (transaction) {
             setEditingTransaction(transaction);
-            // Se nÃ£o tem categoryId, procura pelo nome da categoria
+            // Se nÃo tem categoryId, procura pelo nome da categoria
             let categoryIdValue = transaction.categoryId ? String(transaction.categoryId) : '';
             if (!categoryIdValue && transaction.category) {
                 const foundCat = categories.find(c => c.name === transaction.category);
@@ -134,31 +134,31 @@ const Transactions = () => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Extrai categoryId e constrÃ³i transactionData sem o categoryId antigo
+            // Extrai categoryId e constrÃi transactionData sem o categoryId antigo
             const { categoryId: _, ...formDataWithoutCategoryId } = formData;
             
             // Determina o categoryId apropriado (mantendo como string para suportar GUIDs)
             let categoryIdValue = null;
 
-            // 1. Se o usuÃ¡rio selecionou uma categoria vÃ¡lida no form, usa essa (string)
+            // 1. Se o usuÃrio selecionou uma categoria vÃlida no form, usa essa (string)
             if (formData.categoryId && formData.categoryId !== '') {
                 categoryIdValue = formData.categoryId;
             }
-            // 2. Se nÃ£o tem categoryId no form mas tem o nome, procura o ID (preserva como string)
+            // 2. Se nÃo tem categoryId no form mas tem o nome, procura o ID (preserva como string)
             else if (formData.category) {
                 const foundCat = categories.find(c => c.name === formData.category);
                 if (foundCat?.id) {
                     categoryIdValue = String(foundCat.id);
                 } else if (editingTransaction?.categoryId) {
-                    // Se nÃ£o encontra a categoria pelo nome, mantÃ©m a original
+                    // Se nÃo encontra a categoria pelo nome, mantÃm a original
                     categoryIdValue = String(editingTransaction.categoryId);
                 }
             }
-            // 3. Se nÃ£o tem nada, tenta manter a original se estÃ¡ editando
+            // 3. Se nÃo tem nada, tenta manter a original se estÃ editando
             else if (editingTransaction?.categoryId) {
                 categoryIdValue = String(editingTransaction.categoryId);
             }
-            // 4. Ãšltimo recurso: usa a primeira categoria
+            // 4. Ãltimo recurso: usa a primeira categoria
             else if (categories.length > 0 && categories[0]?.id) {
                 categoryIdValue = String(categories[0].id);
             }
@@ -186,7 +186,7 @@ const Transactions = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Tem certeza que deseja excluir este lanÃ§amento?')) {
+        if (window.confirm('Tem certeza que deseja excluir este lanÃamento?')) {
             setLoading(true);
             try {
                 await apiService.deleteTransaction(id);
@@ -252,17 +252,17 @@ const Transactions = () => {
 
     const handleExportExcel = () => {
         if (sortedTransactions.length === 0) {
-            alert('NÃ£o hÃ¡ dados para exportar com os filtros atuais.');
+            alert('NÃo hÃ dados para exportar com os filtros atuais.');
             return;
         }
 
         // Prepare data for XLSX
         const data = sortedTransactions.map(t => ({
             'Data': new Date(t.date).toLocaleDateString('pt-BR'),
-            'DescriÃ§Ã£o': t.description,
+            'DescriÃÃo': t.description,
             'Categoria': t.category || 'Sem categoria',
             'Tipo': t.type === 'income' ? 'Receita' : 'Despesa',
-            'Pagamento': t.paymentMethod === 'credit_card' ? 'CartÃ£o de CrÃ©dito' : 'Dinheiro/Conta',
+            'Pagamento': t.paymentMethod === 'credit_card' ? 'CartÃo de CrÃdito' : 'Dinheiro/Conta',
             'Status': t.status === 'paid' ? 'Pago' : (t.status === 'canceled' ? 'Cancelado' : 'Pendente'),
             'Valor': t.amount
         }));
@@ -272,7 +272,7 @@ const Transactions = () => {
         
         // Create workbook
         const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'LanÃ§amentos');
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'LanÃamentos');
 
         // Download file
         XLSX.writeFile(workbook, `lancamentos_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -455,7 +455,7 @@ const Transactions = () => {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">LanÃ§amentos</h1>
+                <h1 className="text-2xl font-bold text-gray-900">LanÃamentos</h1>
                 <div className="flex gap-2">
                     <button
                         onClick={handleExportExcel}
@@ -465,7 +465,7 @@ const Transactions = () => {
                         <Download size={20} />
                         <span className="hidden sm:inline">Exportar</span>
                     </button>
-                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors" title="Importar CSV">
+                    <button onClick={() => setIsImportModalOpen(true)} className="flex items-center justify-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors" title="Importar Extrato CSV">
                         <Upload size={20} />
                         <span className="hidden sm:inline">Importar</span>
                     </button>
@@ -481,7 +481,7 @@ const Transactions = () => {
                         className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                         <Plus size={20} />
-                        <span className="hidden sm:inline">Novo LanÃ§amento</span>
+                        <span className="hidden sm:inline">Novo LanÃamento</span>
                     </button>
                 </div>
             </div>
@@ -505,7 +505,7 @@ const Transactions = () => {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Buscar lanÃ§amentos..."
+                                placeholder="Buscar lanÃamentos..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -541,7 +541,7 @@ const Transactions = () => {
                             >
                                 <option value="">Qualquer pagamento</option>
                                 <option value="cash">Dinheiro/Conta</option>
-                                <option value="credit_card">CartÃ£o de CrÃ©dito</option>
+                                <option value="credit_card">CartÃo de CrÃdito</option>
                             </select>
 
                             <select
@@ -604,7 +604,7 @@ const Transactions = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="flex items-center justify-between p-3">
                     <div className="flex items-center gap-3">
-                        <div className="text-sm font-medium text-gray-700">VisÃ£o Mensal</div>
+                        <div className="text-sm font-medium text-gray-700">VisÃo Mensal</div>
                         <input
                             type="month"
                             value={selectedDate}
@@ -625,28 +625,28 @@ const Transactions = () => {
                                 <div className="text-sm text-gray-500">Saldo em Conta</div>
                                 <DollarSign size={20} className="text-gray-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : 'â€”'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-gray-900">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.balance) : 'â'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Receitas (MÃªs)</div>
+                                <div className="text-sm text-gray-500">Receitas (MÃs)</div>
                                 <ArrowUp size={20} className="text-green-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : 'â€”'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-green-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.income) : 'â'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
                                 <div className="text-sm text-gray-500">Despesas Totais</div>
                                 <ArrowDown size={20} className="text-red-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : 'â€”'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-red-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.expense) : 'â'}</div>
                         </div>
                         <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-500">Fatura CartÃµes</div>
+                                <div className="text-sm text-gray-500">Fatura CartÃes</div>
                                 <CreditCard size={20} className="text-purple-400" />
                             </div>
-                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : 'â€”'}</div>
+                            <div className="mt-3 text-2xl font-semibold text-purple-600">{dashboardData ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dashboardData.cardExpenses) : 'â'}</div>
                         </div>
                     </div>
                 )}
@@ -655,7 +655,7 @@ const Transactions = () => {
             {/* Monthly Charts (collapsible) */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mt-4">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="text-lg font-semibold text-gray-800">GrÃ¡ficos Mensais</div>
+                    <div className="text-lg font-semibold text-gray-800">GrÃficos Mensais</div>
                     <div>
                         <button type="button" onClick={() => setCollapsedMonthlyCharts(!collapsedMonthlyCharts)} className="p-2 rounded hover:bg-gray-100">
                             <ChevronDown className={`transform transition ${collapsedMonthlyCharts ? 'rotate-180' : ''}`} />
@@ -664,7 +664,7 @@ const Transactions = () => {
                 </div>
                 {!collapsedMonthlyCharts && (
                     <div className="space-y-8">
-                        {/* NormalizaÃ§Ã£o dos dados para os grÃ¡ficos de barras e Ã¡rea */}
+                        {/* NormalizaÃÃo dos dados para os grÃficos de barras e Ãrea */}
                         {(() => {
                             const normalizedBarData = dashboardData?.barChartData?.map(d => ({
                                 name: d.name,
@@ -693,7 +693,7 @@ const Transactions = () => {
                                         </div>
 
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Gastos por Categoria (MÃªs Atual)</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">Gastos por Categoria (MÃs Atual)</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <RePieChart>
                                                     <Pie
@@ -720,7 +720,7 @@ const Transactions = () => {
 
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">EvoluÃ§Ã£o do Saldo (6 Meses)</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">EvoluÃÃo do Saldo (6 Meses)</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <AreaChart data={normalizedBarData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                                     <defs>
@@ -733,7 +733,7 @@ const Transactions = () => {
                                                     <XAxis dataKey="name" axisLine={false} tickLine={false} />
                                                     <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => `R$ ${value}`} />
                                                     <Tooltip formatter={(value) => formatCurrency(value)} />
-                                                    <Area type="monotone" dataKey="saldo" name="Saldo LÃ­quido" stroke="#3b82f6" fillOpacity={1} fill="url(#colorSaldo)" strokeWidth={3}>
+                                                    <Area type="monotone" dataKey="saldo" name="Saldo LÃquido" stroke="#3b82f6" fillOpacity={1} fill="url(#colorSaldo)" strokeWidth={3}>
                                                         <LabelList dataKey="saldo" position="top" formatter={(v) => formatCurrency(v)} style={{ fontSize: '12px', fontWeight: 'bold' }} />
                                                     </Area>
                                                 </AreaChart>
@@ -741,13 +741,13 @@ const Transactions = () => {
                                         </div>
 
                                         <div className="h-[450px]">
-                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">DistribuiÃ§Ã£o de Pagamentos</h3>
+                                            <h3 className="text-sm font-medium text-gray-500 mb-4 text-center">DistribuiÃÃo de Pagamentos</h3>
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <RePieChart>
                                                     <Pie
                                                         data={[
                                                             { name: 'Dinheiro/Conta', value: Number(dashboardData?.expense || 0) - Number(dashboardData?.cardExpenses || 0) },
-                                                            { name: 'CartÃ£o de CrÃ©dito', value: Number(dashboardData?.cardExpenses || 0) }
+                                                            { name: 'CartÃo de CrÃdito', value: Number(dashboardData?.cardExpenses || 0) }
                                                         ]}
                                                         cx="50%"
                                                         cy="50%"
@@ -796,7 +796,7 @@ const Transactions = () => {
                                 {topCategories.map(([name, count]) => (
                                     <div key={name} className="flex items-center justify-between">
                                         <div className="text-sm text-gray-700">{name}</div>
-                                        <div className="text-sm text-gray-500">{count} lanÃ§amentos</div>
+                                        <div className="text-sm text-gray-500">{count} lanÃamentos</div>
                                     </div>
                                 ))}
                             </div>
@@ -852,8 +852,8 @@ const Transactions = () => {
                                     </button>
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    <button type="button" title="Ordenar por DescriÃ§Ã£o. Clique para alternar asc/desc." onClick={() => handleSort('description')} className="flex items-center gap-2">
-                                        DescriÃ§Ã£o
+                                    <button type="button" title="Ordenar por DescriÃÃo. Clique para alternar asc/desc." onClick={() => handleSort('description')} className="flex items-center gap-2">
+                                        DescriÃÃo
                                         {sortConfig.key === 'description' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
                                     </button>
                                 </th>
@@ -881,7 +881,7 @@ const Transactions = () => {
                                         {sortConfig.key === 'amount' ? (sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ChevronsUpDown size={14} className="text-gray-300" />}
                                     </button>
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AÃ§Ãµes</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AÃÃes</th>
                             </tr>
                         </thead> 
                         <tbody className="divide-y divide-gray-200">
@@ -902,7 +902,7 @@ const Transactions = () => {
                                         {transaction.paymentMethod === 'credit_card' ? (
                                             <div className="flex items-center gap-1 text-purple-600">
                                                 <CreditCard size={16} />
-                                                <span className="text-xs font-medium">CrÃ©dito</span>
+                                                <span className="text-xs font-medium">CrÃdito</span>
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-1 text-green-600">
@@ -946,7 +946,7 @@ const Transactions = () => {
                 {/* Pagination */}
                 <div className="px-4 py-3 bg-white border-t border-gray-100 flex items-center justify-between">
                     <div className="text-sm text-gray-600">
-                        Mostrando {sortedTransactions.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedTransactions.length)} de {sortedTransactions.length} lanÃ§amentos
+                        Mostrando {sortedTransactions.length === 0 ? 0 : (currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, sortedTransactions.length)} de {sortedTransactions.length} lanÃamentos
                     </div>
                     <div className="flex items-center gap-2">
                         <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="border border-gray-200 rounded px-2 py-1 text-sm">
@@ -955,11 +955,11 @@ const Transactions = () => {
                             <option value={20}>20</option>
                             <option value={50}>50</option>
                         </select>
-                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Â«</button>
+                        <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Â</button>
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 border rounded disabled:opacity-50">Anterior</button>
                         <span className="px-3 text-sm">{currentPage} / {totalPages}</span>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">PrÃ³xima</button>
-                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Â»</button>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">PrÃxima</button>
+                        <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 border rounded disabled:opacity-50">Â</button>
                     </div>
                 </div>
             </div>
@@ -970,7 +970,7 @@ const Transactions = () => {
                     <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="flex items-center justify-between p-6 border-b border-gray-100">
                             <h2 className="text-xl font-bold text-gray-900">
-                                {editingTransaction ? 'Editar LanÃ§amento' : 'Novo LanÃ§amento'}
+                                {editingTransaction ? 'Editar LanÃamento' : 'Novo LanÃamento'}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                                 <X size={24} />
@@ -1009,14 +1009,14 @@ const Transactions = () => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">DescriÃ§Ã£o</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">DescriÃÃo</label>
                                 <input
                                     type="text"
                                     required
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                    placeholder="Ex: Compras do mÃªs"
+                                    placeholder="Ex: Compras do mÃs"
                                 />
                             </div>
 
@@ -1091,7 +1091,7 @@ const Transactions = () => {
                                             )}
                                         >
                                             <CreditCard size={16} />
-                                            CartÃ£o de CrÃ©dito
+                                            CartÃo de CrÃdito
                                         </button>
                                     </div>
 
@@ -1102,7 +1102,7 @@ const Transactions = () => {
                                             onChange={(e) => setFormData({ ...formData, cardId: e.target.value })}
                                             className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                                         >
-                                            <option value="">Selecione o cartÃ£o</option>
+                                            <option value="">Selecione o cartÃo</option>
                                             {cards.map(card => (
                                                 <option key={card.id} value={card.id}>{card.name}</option>
                                             ))}
@@ -1154,7 +1154,7 @@ const Transactions = () => {
                                 <h3 className="text-sm font-medium text-gray-700 mb-4">Adicionar Novo Modelo</h3>
                                 <form onSubmit={handleAddTemplate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                                     <div className="md:col-span-2">
-                                        <label className="block text-xs text-gray-500 mb-1">DescriÃ§Ã£o</label>
+                                        <label className="block text-xs text-gray-500 mb-1">DescriÃÃo</label>
                                         <input
                                             type="text"
                                             required
@@ -1217,10 +1217,10 @@ const Transactions = () => {
                                 className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
                             >
                                 <CheckCircle size={20} />
-                                Gerar Contas para o MÃªs Atual
+                                Gerar Contas para o MÃs Atual
                             </button>
                             <p className="text-xs text-gray-500 text-center mt-2">
-                                Isso criarÃ¡ lanÃ§amentos pendentes para o dia 10 deste mÃªs com valor R$ 0,00.
+                                Isso criarÃ lanÃamentos pendentes para o dia 10 deste mÃs com valor R$ 0,00.
                             </p>
                         </div>
                     </div>
@@ -1234,6 +1234,7 @@ export default Transactions;
 
 
 
+            
             {/* Import Modal */}
             {isImportModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1243,82 +1244,10 @@ export default Transactions;
                             <button onClick={handleCloseImport} className="text-gray-500 hover:text-gray-700"><X size={24} /></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="flex flex-wrap gap-4 items-end">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-                                    <select value={importSource} onChange={(e) => setImportSource(e.target.value)} className="border rounded-lg px-3 py-2">
-                                        <option value="nubank">Nubank</option>
-                                        <option value="mercadopago">Mercado Pago</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Arquivo CSV</label>
-                                    <input type="file" accept=".csv" onChange={handleImportFileChange} className="border rounded-lg px-3 py-2" />
-                                </div>
-                                <button onClick={handleImportPreview} disabled={importLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">Analisar</button>
-                            </div>
-                            {importError && <div className="bg-red-100 text-red-700 p-3 rounded">{importError}</div>}
-                            {importPreview && (
-                                <div className="space-y-3">
-                                    <div className="text-sm text-gray-600">Validos: {importPreview.validRows} / {importPreview.totalRows}</div>
-                                    <div className="overflow-x-auto">
-                                        <table className="min-w-full divide-y divide-gray-200">
-                                            <thead className="bg-gray-50">
-                                                <tr>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Data</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Descrição</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Valor</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Tipo</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Categoria</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Criar cat.</th>
-                                                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="bg-white divide-y divide-gray-200">
-                                                {importPreview.items.map((item, idx) => (
-                                                    <tr key={idx} className={item.isValid ? '' : 'bg-red-50'}>
-                                                        <td className="px-2 py-2 text-xs">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
-                                                        <td className="px-2 py-2 text-xs max-w-xs truncate" title={item.description}>{item.description}</td>
-                                                        <td className="px-2 py-2 text-xs">R$ {Number(item.amount).toFixed(2)}</td>
-                                                        <td className="px-2 py-2 text-xs">
-                                                            <select value={item.type} onChange={(e) => handleUpdateImportItem(idx, 'type', e.target.value)} className="border rounded px-1 py-1 text-xs">
-                                                                <option value="expense">Despesa</option>
-                                                                <option value="income">Receita</option>
-                                                            </select>
-                                                        </td>
-                                                        <td className="px-2 py-2 text-xs">
-                                                            {!item.createCategoryIfMissing ? (
-                                                                <select value={item.suggestedCategoryId || ''} onChange={(e) => {
-                                                                    const cat = categories.find(c => c.id === e.target.value);
-                                                                    handleUpdateImportItem(idx, 'suggestedCategoryId', e.target.value);
-                                                                    handleUpdateImportItem(idx, 'suggestedCategoryName', cat?.name || '');
-                                                                }} className="border rounded px-1 py-1 text-xs">
-                                                                    <option value="">Selecionar</option>
-                                                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                                                </select>
-                                                            ) : (
-                                                                <input type="text" value={item.newCategoryName || ''} onChange={(e) => handleUpdateImportItem(idx, 'newCategoryName', e.target.value)} className="border rounded px-1 py-1 text-xs w-24" />
-                                                            )}
-                                                            <button type="button" onClick={() => handleToggleCreateCategory(idx)} className="ml-1 text-xs text-blue-600">Nova</button>
-                                                        </td>
-                                                        <td className="px-2 py-2 text-xs">
-                                                            <select value={item.status} onChange={(e) => handleUpdateImportItem(idx, 'status', e.target.value)} className="border rounded px-1 py-1 text-xs">
-                                                                <option value="paid">Pago</option>
-                                                                <option value="pending">Pendente</option>
-                                                                <option value="canceled">Cancelado</option>
-                                                            </select>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div className="flex justify-end">
-                                        <button onClick={handleConfirmImport} disabled={importLoading} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50">Confirmar Importação</button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
