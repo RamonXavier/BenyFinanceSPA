@@ -190,6 +190,28 @@ export const apiService = {
             body: JSON.stringify({ month, year })
         });
         return handleResponse(response);
+    },
+
+    // Import de extratos (Nubank/Mercado Pago)
+    previewImport: async (file, source = 'nubank') => {
+        const token = localStorage.getItem('token');
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await fetch(`${API_URL}/import/preview?source=${source}`, {
+            method: 'POST',
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: formData
+        });
+        return handleResponse(response);
+    },
+
+    confirmImport: async (data) => {
+        const response = await fetch(`${API_URL}/import/confirm`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return handleResponse(response);
     }
 };
 

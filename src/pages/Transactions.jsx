@@ -280,14 +280,34 @@ const Transactions = () => {
     // Import handlers
     const handleImportFileChange = (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-            setImportFile(file);
-            setImportPreview(null);
-            setImportError('');
+        if (!file) return;
+        const name = file.name.toLowerCase();
+        const isCsv = name.endsWith('.csv');
+        const isPdf = name.endsWith('.pdf');
+        if (!isCsv && !isPdf) {
+            setImportFile(null);
+            setImportError('Formato não suportado. Use .csv (Nubank) ou .pdf (Mercado Pago).');
+            e.target.value = '';
+            return;
         }
+        if (importSource === 'nubank' && !isCsv) {
+            setImportFile(null);
+            setImportError('Nubank exporta em CSV. Selecione um arquivo .csv.');
+            e.target.value = '';
+            return;
+        }
+        if (importSource === 'mercadopago' && !isPdf) {
+            setImportFile(null);
+            setImportError('Mercado Pago: selecione o extrato em PDF (Extratos → Baixar PDF).');
+            e.target.value = '';
+            return;
+        }
+        setImportFile(file);
+        setImportPreview(null);
+        setImportError('');
     };
     const handleImportPreview = async () => {
-        if (!importFile) { setImportError('Selecione um arquivo CSV'); return; }
+        if (!importFile) { setImportError('Selecione um arquivo (CSV do Nubank ou PDF do Mercado Pago)'); return; }
         setImportLoading(true); setImportError('');
         try { const preview = await apiService.previewImport(importFile, importSource); setImportPreview(preview); }
         catch (err) { setImportError(err?.message || 'Erro ao analisar arquivo'); }
@@ -1238,14 +1258,25 @@ const Transactions = () => {
                             <div className="flex flex-wrap gap-4 items-end">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Origem</label>
-                                    <select value={importSource} onChange={(e) => setImportSource(e.target.value)} className="border rounded-lg px-3 py-2">
-                                        <option value="nubank">Nubank</option>
-                                        <option value="mercadopago">Mercado Pago</option>
+                                    <select
+                                        value={importSource}
+                                        onChange={(e) => {
+                                            setImportSource(e.target.value);
+                                            setImportFile(null);
+                                            setImportPreview(null);
+                                            setImportError('');
+                                        }}
+                                        className="border rounded-lg px-3 py-2"
+                                    >
+                                        <option value="nubank">Nubank (CSV)</option>
+                                        <option value="mercadopago">Mercado Pago (PDF)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Arquivo CSV</label>
-                                    <input type="file" accept=".csv" onChange={handleImportFileChange} className="border rounded-lg px-3 py-2" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Arquivo {importSource === 'nubank' ? 'CSV (Nubank)' : 'PDF (Mercado Pago)'}
+                                    </label>
+                                    <input type="file" accept=".csv,.pdf" onChange={handleImportFileChange} className="border rounded-lg px-3 py-2" />
                                 </div>
                                 <button onClick={handleImportPreview} disabled={importLoading} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50">Analisar</button>
                             </div>
